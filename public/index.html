@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard | Threat Intelligence Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        dark: {
+                            900: '#0b0f19',
+                            950: '#05070c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .radar-sweep {
+            background: conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(244, 63, 94, 0.15) 360deg);
+            animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        circle {
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-dark-950 text-slate-200 font-sans min-h-screen flex items-center justify-center p-3 sm:p-6 selection:bg-rose-500 selection:text-white relative overflow-x-hidden">
+
+    <!-- Ambient Grid & Glow Background -->
+    <div class="fixed inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none"></div>
+    <div class="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Main Container Console -->
+    <main class="w-full max-w-4xl bg-dark-900/90 backdrop-blur-2xl border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative z-10 flex flex-col">
+        
+        <!-- Top Toolbar -->
+        <header class="bg-slate-950/80 border-b border-slate-800/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                    <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold tracking-wide text-white uppercase">PhishGuard OS</span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">v2.4-CORE</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-mono">Heuristic Brand Protection & Link Triage</p>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div class="flex items-center gap-4 text-xs font-mono">
+                <div class="hidden sm:flex items-center gap-1.5 text-slate-400">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>HEURISTIC ENGINE: ACTIVE</span>
+                </div>
+                <div class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>STANDBY</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Command Input Section -->
+        <div class="p-6 bg-slate-950/40 border-b border-slate-800/60 space-y-3">
+            <div class="flex items-center justify-between text-xs font-mono">
+                <span class="text-slate-400 flex items-center gap-1.5">
+                    <i data-lucide="terminal" class="w-3.5 h-3.5 text-rose-400"></i>
+                    INSPECT_TARGET_URI
+                </span>
+                <span class="text-[11px] text-slate-500">Zero-Execution Sandboxed Parsing</span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <div class="relative flex-1">
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        placeholder="Paste suspicious target link (e.g. http://paypa1-secure.top/login)..." 
+                        class="w-full bg-slate-950 border border-slate-800 focus:border-rose-500/80 rounded-xl px-4 py-3 text-xs sm:text-sm font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition pl-10"
+                    >
+                    <i data-lucide="link-2" class="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5"></i>
+                </div>
+                <button id="scanBtn" type="button" class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs font-mono font-semibold px-6 py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-rose-950/50">
+                    <i data-lucide="scan" class="w-4 h-4"></i>
+                    <span>DISSECT</span>
+                </button>
+            </div>
+
+            <!-- Quick Preset Target Chips -->
+            <div class="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono text-slate-400">
+                <span class="text-slate-600">Quick Test Vector:</span>
+                <button class="preset px-2 py-0.5 rounded bg-slate-900 hover:bg-rose-950/40 hover:text-rose-300 border border-slate-800 transition" data-url="http://mayb4nk2u-secure.xyz/auth">Typosquatting (.xyz)</button>
+                <button class="preset px-2 py-0.5 rounded bg-slate-900 hover:bg-rose-950/40 hover:text-rose-300 border border-slate-800 transition" data-url="http://172.56.21.89/netflix/billing/update">Direct IP Spoof</button>
+                <button class="preset px-2 py-0.5 rounded bg-slate-900 hover:bg-emerald-950/40 hover:text-emerald-300 border border-slate-800 transition" data-url="https://github.com">Clean Target</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Content Grid -->
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[360px]">
+            
+            <!-- Left Column: Circular Threat Meter (4 cols) -->
+            <div class="lg:col-span-4 flex flex-col items-center justify-center p-6 rounded-xl bg-slate-950/60 border border-slate-800/80 relative overflow-hidden text-center space-y-4">
+                
+                <!-- Radar animation backdrop -->
+                <div class="absolute inset-0 rounded-xl radar-sweep pointer-events-none opacity-40"></div>
+
+                <div class="relative w-40 h-40 flex items-center justify-center">
+                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="50" stroke="#1e293b" stroke-width="8" fill="transparent" />
+                        <circle id="gaugeProgress" cx="60" cy="60" r="50" stroke="#f43f5e" stroke-width="8" stroke-dasharray="314.15" stroke-dashoffset="314.15" stroke-linecap="round" fill="transparent" />
+                    </svg>
+                    <div class="absolute flex flex-col items-center">
+                        <span id="scoreValue" class="text-3xl font-black font-mono tracking-tight text-slate-100">0%</span>
+                        <span class="text-[10px] font-mono uppercase text-slate-500 tracking-wider">Risk Index</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1 w-full relative z-10">
+                    <div id="verdictPill" class="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-slate-800 text-slate-400 border border-slate-700">
+                        AWAITING TARGET
+                    </div>
+                    <p id="targetDomainDisplay" class="text-xs font-mono text-slate-400 truncate max-w-[200px] mx-auto">No input parsed</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Threat Vectors & Analysis Log (8 cols) -->
+            <div class="lg:col-span-8 flex flex-col justify-between space-y-4">
+                
+                <!-- Vector Breakdown Box -->
+                <div class="flex-1 bg-slate-950/60 p-5 rounded-xl border border-slate-800/80 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/60 pb-3">
+                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                            <i data-lucide="cpu" class="w-4 h-4 text-rose-400"></i>
+                            Heuristic Vector Analysis
+                        </span>
+                        <span id="vectorCount" class="text-[10px] font-mono text-slate-500">0 ANOMALIES FOUND</span>
+                    </div>
+
+                    <!-- Findings Container -->
+                    <div id="findingsContainer" class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                        <!-- Placeholder State -->
+                        <div class="py-12 flex flex-col items-center justify-center text-slate-600 space-y-2 font-mono text-xs text-center">
+                            <i data-lucide="crosshair" class="w-6 h-6 text-slate-700"></i>
+                            <p>Insert a target link to begin algorithmic decomposition.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Audit Telemetry / Spec bar -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/60 text-slate-400 flex items-center justify-between">
+                        <span>ALGO:</span>
+                        <span class="text-slate-200">Levenshtein</span>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/60 text-slate-400 flex items-center justify-between">
+                        <span>PARSER:</span>
+                        <span class="text-slate-200">RFC 3986</span>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/60 text-slate-400 col-span-2 sm:col-span-1 flex items-center justify-between">
+                        <span>LATENCY:</span>
+                        <span class="text-emerald-400 font-semibold">&lt; 10ms</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Footer Terminal Bar -->
+        <footer class="bg-slate-950 border-t border-slate-800/80 px-6 py-3 flex items-center justify-between text-[11px] font-mono text-slate-500">
+            <div class="flex items-center gap-2">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-slate-600"></i>
+                <span>CONSOLE_OUTPUT: OK</span>
+            </div>
+            <span>PRIVACY_FIRST // LOCAL_ONLY</span>
+        </footer>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        const urlInput = document.getElementById('urlInput');
+        const scanBtn = document.getElementById('scanBtn');
+        const scoreValue = document.getElementById('scoreValue');
+        const gaugeProgress = document.getElementById('gaugeProgress');
+        const verdictPill = document.getElementById('verdictPill');
+        const targetDomainDisplay = document.getElementById('targetDomainDisplay');
+        const findingsContainer = document.getElementById('findingsContainer');
+        const vectorCount = document.getElementById('vectorCount');
+
+        const CIRCUMFERENCE = 2 * Math.PI * 50; // ~314.15
+
+        // Preset button triggers
+        document.querySelectorAll('.preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                urlInput.value = btn.dataset.url;
+                runScan();
+            });
+        });
+
+        scanBtn.addEventListener('click', runScan);
+        urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runScan();
+        });
+
+        async function runScan() {
+            const rawUrl = urlInput.value.trim();
+            if (!rawUrl) return;
+
+            scanBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>SCANNING</span>`;
+            scanBtn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/api/scan-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: rawUrl })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                // Update Gauge Score
+                const offset = CIRCUMFERENCE - (data.riskScore / 100) * CIRCUMFERENCE;
+                gaugeProgress.style.strokeDashoffset = offset;
+                scoreValue.textContent = `${data.riskScore}%`;
+                targetDomainDisplay.textContent = data.hostname;
+
+                // Color and Verdict states
+                if (data.verdict === 'Dangerous') {
+                    gaugeProgress.style.stroke = '#f43f5e';
+                    scoreValue.className = 'text-3xl font-black font-mono tracking-tight text-rose-400';
+                    verdictPill.className = 'inline-block px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-rose-950/80 text-rose-300 border border-rose-800';
+                    verdictPill.textContent = 'HIGH THREAT / MALICIOUS';
+                } else if (data.verdict === 'Suspicious') {
+                    gaugeProgress.style.stroke = '#f59e0b';
+                    scoreValue.className = 'text-3xl font-black font-mono tracking-tight text-amber-400';
+                    verdictPill.className = 'inline-block px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-amber-950/80 text-amber-300 border border-amber-800';
+                    verdictPill.textContent = 'SUSPICIOUS / ELEVATED';
+                } else {
+                    gaugeProgress.style.stroke = '#10b981';
+                    scoreValue.className = 'text-3xl font-black font-mono tracking-tight text-emerald-400';
+                    verdictPill.className = 'inline-block px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-emerald-950/80 text-emerald-300 border border-emerald-800';
+                    verdictPill.textContent = 'BENIGN / LOW THREAT';
+                }
+
+                // Render Findings
+                vectorCount.textContent = `${data.findings.length} VECTOR(S) FLAGGED`;
+                findingsContainer.innerHTML = '';
+
+                if (data.findings.length > 0) {
+                    data.findings.forEach(f => {
+                        const badgeColor = f.severity === 'Critical' ? 'text-rose-400 bg-rose-950/80 border-rose-800' :
+                                           f.severity === 'High' ? 'text-orange-400 bg-orange-950/80 border-orange-800' :
+                                           'text-amber-400 bg-amber-950/80 border-amber-800';
+
+                        findingsContainer.innerHTML += `
+                            <div class="flex items-start gap-3 bg-slate-900/80 p-3 rounded-lg border border-slate-800 font-mono text-xs">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded border uppercase shrink-0 ${badgeColor}">${f.severity}</span>
+                                <span class="text-slate-300 leading-relaxed">${f.msg}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    findingsContainer.innerHTML = `
+                        <div class="py-10 flex flex-col items-center justify-center text-emerald-400 space-y-1 font-mono text-xs text-center">
+                            <i data-lucide="check-circle" class="w-6 h-6 text-emerald-400"></i>
+                            <p class="font-semibold text-emerald-300">Clean Link Topology</p>
+                            <p class="text-slate-500 text-[11px]">No immediate typosquatting or structural anomalies detected.</p>
+                        </div>
+                    `;
+                }
+
+                lucide.createIcons();
+
+            } catch (err) {
+                alert(err.message || 'Analysis error');
+            } finally {
+                scanBtn.innerHTML = `<i data-lucide="scan" class="w-4 h-4"></i><span>DISSECT</span>`;
+                scanBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>
