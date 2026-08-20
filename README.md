@@ -79,7 +79,7 @@ phishguard-scanner/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/phishguard-scanner.git
+   git clone https://github.com/NellSosuzxy/phishguard-scanner.git
    cd phishguard-scanner
    ```
 
